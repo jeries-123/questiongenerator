@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create A New Exam</title>
+    <link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+    <div class="logo">
+        <img src="air-logo.png" alt="Logo" class="logo-img">
+    </div>
+    <div class="container">
+        <div class="header">
+        
+            <div class="title-icon">
+                <h2>Create A New Exam</h2>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h3>Select University To Have Same Level of Questions :</h3>
+            <div class="university-list">
+                <div class="university-box">Oxford University</div>
+                <div class="university-box">Harvard University</div>
+                <div class="university-box">Stanford University</div>
+                <div class="university-box">MIT</div>
+                <div class="university-box">Cambridge University</div>
+            </div>
+        </div>
+
+        <form class="exam-form">
+            <div class="form-group">
+                <label for="exam-name">Exam subject</label>
+                <input type="text" id="exam-name" placeholder="English langguage Exam " required>
+            </div>
+            <div class="form-group">
+                <label for="multiple-choice">Number of Multiple Choice Questions</label>
+                <input type="number" id="multiple-choice" min="0" value="2" required>
+            </div>
+            <div class="form-group">
+                <label for="fill-blanks">Number of Fill in the Blanks</label>
+                <input type="number" id="fill-blanks" min="0" value="2" required>
+            </div>
+            <div class="form-group">
+                <label for="true-false">Number of True and False</label>
+                <input type="number" id="true-false" min="0" value="2" required>
+            </div>
+            <div class="form-group">
+                <label for="exam-duration">Number Of Clasic Questions</label>
+                <input type="number" id="exam-duration" min="0" value="2" required>
+            </div>
+            <div class="form-group">
+                <label for="hardness-level">Hardness Level</label>
+                <select id="hardness-level" required>
+                    <option value="automatic">Automatic</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            <div class="form-group file-upload-group">
+                <label for="file-upload">Optional: Upload sample Questions</label>
+                <div class="file-input-wrapper" onclick="document.getElementById('file-upload').click()">
+                    <input type="file" id="file-upload" accept=".pdf" style="display: none;" onchange="updateLogo()">
+                    <img src="R.png" alt="Upload Icon" class="upload-icon">
+                    <span class="upload-text">Click to upload</span>
+                </div>
+                <p class="file-type-info">Only PDF files .</p>
+            </div>
+            
+            <button type="submit">Create</button>
+        </form>
+    </div>
+
+    <script>
+        function updateLogo() {
+            const fileInput = document.getElementById('file-upload');
+            const logo = document.querySelector('.upload-icon');
+            
+            if (fileInput.files.length > 0) {
+              
+                logo.src = 'R.png'; 
+            }
+        }
+    </script>
+        <script src="script.js"></script>
+</body>
+</html>
