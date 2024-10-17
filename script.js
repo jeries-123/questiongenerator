@@ -58,11 +58,11 @@ async function generateExamPreview(apiKey, formData, maxRetries = 3) {
     while (retryCount < maxRetries) {
         try {
             const requestBody = {
-                model: "gpt-4",
+                model: "gpt-3.5-turbo",
                 messages: [
                     {
                         role: "system",
-                        content: "You are an AI assistant that generates exam questions based on the subject and difficulty level provided. Always return the result in valid JSON format."
+                        content: "You are an AI assistant that generates exam questions based on the subject and difficulty level provided. Always return the result in valid JSON format. Do not use the specific content from the example provided; only use it to understand the appropriate difficulty level."
                     },
                     {
                         role: "user",
@@ -71,14 +71,14 @@ async function generateExamPreview(apiKey, formData, maxRetries = 3) {
                         - ${formData.numFillInTheBlanks} fill-in-the-blank questions
                         - ${formData.numTrueFalse} true/false questions
                         - ${formData.examDuration} open-ended questions.
-
-                        The content in the uploaded file is provided as an example to help you understand the level of difficulty of the questions that should be generated, but do not generate questions directly from the content.
-
-                        Example content:
+            
+                        The example content provided below is to be used only as a reference for understanding the level of difficulty. Do not generate questions directly from the content. Instead, create original questions that align with the difficulty level of the example.
+            
+                        Example content (for difficulty level reference only):
                         \n\n${formData.fileContent}\n\n
-                        
+            
                         Ensure that the questions match the difficulty level expected at "${formData.university || "a typical university"}". Format the output as valid JSON with the following structure:
-
+            
                         {
                             "questions": [
                                 {
@@ -92,7 +92,7 @@ async function generateExamPreview(apiKey, formData, maxRetries = 3) {
                 ],
                 max_tokens: 4000
             };
-
+            
             console.log("Sending request to OpenAI...");
             const response = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
