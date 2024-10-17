@@ -58,11 +58,11 @@ async function generateExamPreview(apiKey, formData, maxRetries = 3) {
     while (retryCount < maxRetries) {
         try {
             const requestBody = {
-                model: "gpt-3.5 turbo",
+                model: "gpt-4",
                 messages: [
                     {
                         role: "system",
-                        content: "You are an AI assistant that generates exam questions based on the subject and difficulty level provided. Use the example content provided from the uploaded file to match the question difficulty but do not directly base questions on the content."
+                        content: "You are an AI assistant that generates exam questions based on the subject and difficulty level provided. Always return the result in valid JSON format."
                     },
                     {
                         role: "user",
@@ -76,10 +76,21 @@ async function generateExamPreview(apiKey, formData, maxRetries = 3) {
 
                         Example content:
                         \n\n${formData.fileContent}\n\n
-                        Ensure that the questions match the difficulty level expected at "${formData.university || "a typical university"}".`
+                        
+                        Ensure that the questions match the difficulty level expected at "${formData.university || "a typical university"}". Format the output as valid JSON with the following structure:
+
+                        {
+                            "questions": [
+                                {
+                                    "question": "string",
+                                    "options": ["option1", "option2", "option3", "option4"],
+                                    "answer": "correct answer"
+                                }
+                            ]
+                        }`
                     }
                 ],
-                max_tokens: 4000 // Ensure this doesn't exceed the API's token limit
+                max_tokens: 4000
             };
 
             console.log("Sending request to OpenAI...");
@@ -102,14 +113,14 @@ async function generateExamPreview(apiKey, formData, maxRetries = 3) {
             const rawContent = data.choices[0].message.content.trim();
             console.log("Received response from OpenAI:", rawContent);
 
-            // Try to extract JSON from the response
+            // Try to parse the response as JSON
             try {
-                const jsonResponse = JSON.parse(rawContent); // Attempt to parse as JSON directly
+                const jsonResponse = JSON.parse(rawContent);
                 console.log("Parsed exam data:", jsonResponse);
                 return jsonResponse;
             } catch (jsonError) {
                 console.warn("Response is not in JSON format, treating as plain text:", rawContent);
-                return rawContent; // Return the raw text if not JSON
+                return rawContent; // Return
             }
         } catch (error) {
             console.error(`Retry ${retryCount + 1} failed:`, error);
@@ -122,41 +133,108 @@ async function generateExamPreview(apiKey, formData, maxRetries = 3) {
 
 // Function to show the exam preview in a modal
 function showExamPreviewModal(examData) {
-    let content = '';
-
     if (typeof examData === 'string') {
         // Handle plain text response
-        content = examData;
-    } else if (Array.isArray(examData.questions)) {
-        // Handle JSON response with questions array
-        const questions = examData.questions;
-        questions.forEach((question, index) => {
-            content += `Q${index + 1}: ${question.question}\n`;
-            if (question.options && question.options.length) {
-                question.options.forEach((option, i) => {
-                    content += `${String.fromCharCode(65 + i)}. ${option}\n`;
-                });
-            }
-            content += `Answer: ${question.answer}\n\n`;
-        });
-    } else {
-        console.error("Invalid exam data format.");
-        alert("Failed to load exam questions.");
+        console.warn("Received plain text response instead of JSON.");
+        alert("The exam preview is not in the expected format. Please check.");
         return;
+    }
+
+    const questions = examData.questions;
+    let currentQuestionIndex = 0;
+
+    // Function to update the modal view with the current question
+    function updateQuestionView() {
+        const currentQuestion = questions[currentQuestionIndex];
+        const questionText = currentQuestion.question;
+        const answerText = currentQuestion.answer;
+        const options = currentQuestion.options || [];
+
+        let content = `Q: ${questionText}\n`;
+        if (options.length > 0) {
+            options.forEach((option, index) => {
+                content += `${String.fromCharCode(65 + index)}. ${option}\n`;
+            });
+        }
+        content += `Answer: ${answerText}`;
+
+        const questionContent = document.querySelector("#question-content");
+        if (questionContent) {
+            questionContent.value = content;
+        }
+
+        document.querySelector("#question-number").textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
     }
 
     const modalHtml = `
         <div class="modal-overlay">
             <div class="modal-content">
                 <h2>Exam Preview</h2>
-                <pre id="exam-preview-content">${content}</pre>
+                <div class="question-navigation">
+                    <button id="prev-question">Previous</button>
+                    <span id="question-number">Question 1 of ${questions.length}</span>
+                    <button id="next-question">Next</button>
+                </div>
+                <textarea id="question-content" class="question-content" placeholder="Edit the question, options, and answer..."></textarea>
                 <div class="modal-buttons">
-                    <button id="close-modal" onclick="window.closeModal()">Close</button>
+                    <button id="close-modal">Close</button>
+                    <button id="finalize-exam">Finalize</button>
                 </div>
             </div>
         </div>
     `;
     document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+    // Update the first question
+    updateQuestionView();
+
+    // Attach event listeners to buttons
+    document.getElementById("prev-question").addEventListener("click", () => {
+        if (currentQuestionIndex > 0) {
+            saveCurrentQuestion();
+            currentQuestionIndex--;
+            updateQuestionView();
+        }
+    });
+
+    document.getElementById("next-question").addEventListener("click", () => {
+        if (currentQuestionIndex < questions.length - 1) {
+            saveCurrentQuestion();
+            currentQuestionIndex++;
+            updateQuestionView();
+        }
+    });
+
+    document.getElementById("close-modal").addEventListener("click", () => {
+        document.querySelector(".modal-overlay").remove();
+    });
+
+    document.getElementById("finalize-exam").addEventListener("click", () => {
+        saveCurrentQuestion();
+        alert("Exam finalized! You can now use the edited content.");
+        document.querySelector(".modal-overlay").remove();
+    });
+
+    // Function to save the current question's edits
+    function saveCurrentQuestion() {
+        const currentQuestion = questions[currentQuestionIndex];
+        const content = document.querySelector("#question-content").value;
+
+        const lines = content.split("\n");
+        currentQuestion.question = lines[0].replace(/^Q:\s*/, '').trim();
+        currentQuestion.options = [];
+        let answerIndex = -1;
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith("Answer:")) {
+                answerIndex = i;
+                currentQuestion.answer = line.replace(/^Answer:\s*/, '').trim();
+            } else if (/^[A-Z]\.\s/.test(line)) {
+                currentQuestion.options.push(line.substring(3).trim());
+            }
+        }
+    }
 }
 
 // Function to submit the exam form
@@ -174,7 +252,7 @@ async function submitExamForm(event) {
         examDuration: parseInt(document.getElementById("exam-duration").value, 10),
         hardnessLevel: document.getElementById("hardness-level").value,
         university: getSelectedUniversity(),
-        fileContent: await getFileContent()
+        fileContent: await getFileContent() // Extract the content of the uploaded file
     };
 
     console.log("Form data being sent:", formData);
@@ -191,6 +269,8 @@ async function submitExamForm(event) {
         hideSpinner(); // Hide the spinner once done
     }
 }
+
+// Spinner functions
 
 // Function to show the loading spinner
 function showSpinner() {
@@ -209,16 +289,6 @@ function hideSpinner() {
         spinnerOverlay.remove();
     }
 }
-
-// Initialize the functionality when the document is fully loaded
-document.addEventListener("DOMContentLoaded", () => {
-    setupUniversitySelection();
-
-    const examForm = document.querySelector(".exam-form");
-    if (examForm) {
-        examForm.addEventListener("submit", submitExamForm);
-    }
-});
 
 // Configure the pdf.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
@@ -266,3 +336,13 @@ async function getFileContent() {
         return null;
     }
 }
+
+// Initialize the functionality when the document is fully loaded
+document.addEventListener("DOMContentLoaded", () => {
+    setupUniversitySelection();
+
+    const examForm = document.querySelector(".exam-form");
+    if (examForm) {
+        examForm.addEventListener("submit", submitExamForm);
+    }
+});
